@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weekly Workout Planner</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.23.2/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .timer-active { background: linear-gradient(135deg, #d1fae5, #a7f3d0); }
+    .error { border: 2px solid #f87171; box-shadow: 0 0 5px rgba(248, 113, 113, 0.5); }
+    .chart-container { max-width: 700px; margin: 30px auto; }
+    .card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+    .card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); }
+    .btn-primary { background: linear-gradient(90deg, #3b82f6, #1d4ed8); }
+    .btn-primary:hover { background: linear-gradient(90deg, #1d4ed8, #1e40af); }
+    .btn-timer { background: linear-gradient(90deg, #f59e0b, #d97706); }
+    .btn-timer:hover { background: linear-gradient(90deg, #d97706, #b45309); }
+    .btn-complete { background: linear-gradient(90deg, #10b981, #059669); }
+    .btn-complete:hover { background: linear-gradient(90deg, #059669, #047857); }
+    .btn-incomplete { background: linear-gradient(90deg, #ef4444, #b91c1c); }
+    .btn-incomplete:hover { background: linear-gradient(90deg, #b91c1c, #991b1b); }
+    .header-bg { background: linear-gradient(135deg, #1e3a8a, #3b82f6); }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const WorkoutApp = () => {
+      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const [workouts, setWorkouts] = useState(
+        days.map(day => ({ day, exercises: [], duration: 0, completed: false }))
+      );
+      const [exercise, setExercise] = useState('');
+      const [duration, setDuration] = useState('');
+      const [day, setDay] = useState('Monday');
+      const [errors, setErrors] = useState({});
+      const [timer, setTimer] = useState(null);
+      const [timeLeft, setTimeLeft] = useState(0);
+      const [chart, setChart] = useState(null);
+
+      const validateInput = () => {
+        const newErrors = {};
+        if (!exercise.trim()) newErrors.exercise = 'Exercise name is required';
+        if (!duration || duration <= 0) newErrors.duration = 'Duration must be a positive number';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+      };
+
+      const addWorkout = () => {
+        if (!validateInput()) return;
+        setWorkouts(workouts.map(w => {
+          if (w.day === day) {
+            return {
+              ...w,
+              exercises: [...w.exercises, { name: exercise, duration: parseInt(duration) }],
+              duration: w.duration + parseInt(duration)
+            };
+          }
+          return w;
+        }));
+        setExercise('');
+        setDuration('');
+        setErrors({});
+      };
+
+      const toggleComplete = (day) => {
+        setWorkouts(workouts.map(w => 
+          w.day === day ? { ...w, completed: !w.completed } : w
+        ));
+      };
+
+      const startTimer = (duration) => {
+        if (timer) clearInterval(timer);
+        setTimeLeft(duration * 60);
+        const interval = setInterval(() => {
+          setTimeLeft(prev => {
+            if (prev <= 1) {
+              clearInterval(interval);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+        setTimer(interval);
+      };
+
+      useEffect(() => {
+        const ctx = document.getElementById('progressChart')?.getContext('2d');
+        if (!ctx) return;
+        if (chart) chart.destroy();
+        const newChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: workouts.map(w => w.day),
+            datasets: [{
+              label: 'Total Duration (minutes)',
+              data: workouts.map(w => w.duration),
+              backgroundColor: workouts.map(w => w.completed ? 'rgba(16, 185, 129, 0.8)' : 'rgba(59, 130, 246, 0.8)'),
+              borderColor: workouts.map(w => w.completed ? '#059669' : '#1d4ed8'),
+              borderWidth: 2,
+              borderRadius: 5,
+              barThickness: 30
+            }]
+          },
+          options: {
+            scales: { 
+              y: { 
+                beginAtZero: true, 
+                title: { display: true, text: 'Minutes', font: { size: 14 } },
+                grid: { color: 'rgba(0, 0, 0, 0.1)' }
+              },
+              x: { grid: { display: false } }
+            },
+            animation: { duration: 1500, easing: 'easeInOutQuart' },
+            plugins: { legend: { labels: { font: { size: 14 } } } }
+          }
+        });
+        setChart(newChart);
+        return () => newChart.destroy();
+      }, [workouts]);
+
+      useEffect(() => {
+        return () => {
+          if (timer) clearInterval(timer);
+        };
+      }, [timer]);
+
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-blue-100 to-gray-50">
+          <header className="header-bg text-white p-6 shadow-lg">
+            <h1 className="text-4xl font-extrabold text-center flex items-center justify-center gap-3">
+              <i className="fas fa-dumbbell"></i> Weekly Workout Planner
+            </h1>
+          </header>
+          
+          <div className="container mx-auto p-6 max-w-5xl">
+            <div className="bg-white p-6 rounded-xl shadow-lg card mb-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <i className="fas fa-plus-circle text-blue-600"></i> Add Workout
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Exercise</label>
+                  <div className="relative">
+                    <i className="fas fa-running absolute left-3 top-3 text-gray-400"></i>
+                    <input
+                      type="text"
+                      value={exercise}
+                      onChange={(e) => setExercise(e.target.value)}
+                      className={`w-full p-3 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${errors.exercise ? 'error' : ''}`}
+                      aria-label="Exercise name"
+                    />
+                  </div>
+                  {errors.exercise && <p className="text-red-500 text-sm mt-1">{errors.exercise}</p>}
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Duration (minutes)</label>
+                  <div className="relative">
+                    <i className="fas fa-clock absolute left-3 top-3 text-gray-400"></i>
+                    <input
+                      type="number"
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                      className={`w-full p-3 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${errors.duration ? 'error' : ''}`}
+                      aria-label="Duration in minutes"
+                    />
+                  </div>
+                  {errors.duration && <p className="text-red-500 text-sm mt-1">{errors.duration}</p>}
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Day</label>
+                  <div className="relative">
+                    <i className="fas fa-calendar-day absolute left-3 top-3 text-gray-400"></i>
+                    <select
+                      value={day}
+                      onChange={(e) => setDay(e.target.value)}
+                      className="w-full p-3 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      aria-label="Select day"
+                    >
+                      {days.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={addWorkout}
+                className="mt-6 btn-primary text-white p-3 rounded-lg font-medium transition w-full md:w-auto"
+              >
+                <i className="fas fa-plus mr-2"></i> Add Workout
+              </button>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-lg card mb-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <i className="fas fa-calendar-week text-blue-600"></i> Weekly Plan
+              </h2>
+              {workouts.map(w => (
+                <div
+                  key={w.day}
+                  className={`p-5 mb-4 border rounded-lg card ${w.completed ? 'timer-active' : 'bg-white'}`}
+                >
+                  <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                    <i className="fas fa-calendar-day text-blue-600"></i> {w.day}
+                  </h3>
+                  <ul className="list-disc pl-6 mt-2">
+                    {w.exercises.map((ex, i) => (
+                      <li key={i} className="flex justify-between items-center py-2">
+                        <span className="text-gray-700">{ex.name} - {ex.duration} min</span>
+                        <button
+                          onClick={() => startTimer(ex.duration)}
+                          className="btn-timer text-white p-2 rounded-lg font-medium transition"
+                          aria-label={`Start timer for ${ex.name}`}
+                        >
+                          <i className="fas fa-stopwatch mr-1"></i> Start Timer
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={() => toggleComplete(w.day)}
+                    className={`mt-3 p-3 rounded-lg text-white font-medium transition ${w.completed ? 'btn-incomplete' : 'btn-complete'}`}
+                  >
+                    <i className="fas fa-check mr-2"></i> {w.completed ? 'Mark Incomplete' : 'Mark Complete'}
+                  </button>
+                </div>
+              ))}
+              {timeLeft > 0 && (
+                <div className="text-center p-5 bg-yellow-100 rounded-lg mt-4 animate-pulse">
+                  <p className="text-lg font-medium text-gray-800">
+                    <i className="fas fa-hourglass-half mr-2 text-yellow-600"></i> 
+                    Timer: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="chart-container bg-white p-6 rounded-xl shadow-lg card">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center flex items-center justify-center gap-2">
+                <i className="fas fa-chart-bar text-blue-600"></i> Progress Chart
+              </h2>
+              <canvas id="progressChart"></canvas>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<WorkoutApp />);
+  </script>
+</body>
+</html>
