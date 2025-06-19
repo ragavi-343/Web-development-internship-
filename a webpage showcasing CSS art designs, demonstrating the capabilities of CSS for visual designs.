@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSS Art Gallery</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(45deg, #6b48ff, #00ddeb, #ff6b6b);
+      background-size: 400%;
+      animation: gradientShift 15s ease infinite;
+      color: #fff;
+      min-height: 100vh;
+      padding: 30px;
+    }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+
+    header h1 {
+      font-size: 3rem;
+      font-weight: 600;
+      color: #fff;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    header p {
+      font-size: 1.3rem;
+      color: #e0e0e0;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 25px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .art-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 25px;
+      text-align: center;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    .art-card:hover {
+      transform: translateY(-10px) scale(1.05);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .art-card h3 {
+      margin-bottom: 20px;
+      color: #fff;
+      font-weight: 600;
+    }
+    .butterfly {
+      position: relative;
+      width: 100px;
+      height: 80px;
+      margin: 0 auto;
+    }
+
+    .butterfly .body {
+      position: absolute;
+      left: 45%;
+      top: 20px;
+      width: 10px;
+      height: 40px;
+      background: #2c3e50;
+      border-radius: 5px;
+    }
+
+    .butterfly .wing-left,
+    .butterfly .wing-right {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, #e91e63, #ffeb3b);
+      border-radius: 50% 20% 50% 20%;
+      animation: flutter 0.5s ease-in-out infinite alternate;
+    }
+
+    .butterfly .wing-left {
+      left: 0;
+      transform: rotate(-45deg);
+    }
+
+    .butterfly .wing-right {
+      right: 0;
+      transform: rotate(45deg);
+    }
+
+    @keyframes flutter {
+      0% { transform: rotate(-45deg) translateY(0); }
+      100% { transform: rotate(-30deg) translateY(-5px); }
+    }
+
+    .butterfly .wing-right {
+      animation-delay: 0.25s;
+    }
+
+    .balloon {
+      position: relative;
+      width: 80px;
+      height: 100px;
+      margin: 0 auto;
+    }
+
+    .balloon .balloon-body {
+      width: 80px;
+      height: 80px;
+      background: radial-gradient(circle, #e74c3c, #c0392b);
+      border-radius: 50% 50% 40% 40%;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .balloon .string {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 2px;
+      height: 30px;
+      background: #333;
+      transform: translateX(-50%);
+    }
+
+    @keyframes float {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0); }
+    }
+
+    .bird {
+      position: relative;
+      width: 100px;
+      height: 60px;
+      margin: 0 auto;
+    }
+
+    .bird .body {
+      position: absolute;
+      width: 60px;
+      height: 40px;
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      border-radius: 50% 50% 20% 20%;
+      left: 20px;
+      top: 10px;
+    }
+
+    .bird .wing {
+      position: absolute;
+      width: 40px;
+      height: 20px;
+      background: #2980b9;
+      border-radius: 50% 0 50% 0;
+      left: 30px;
+      top: 20px;
+      animation: flap 0.4s ease-in-out infinite alternate;
+    }
+
+    .bird .beak {
+      position: absolute;
+      width: 0;
+      height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-bottom: 10px solid #f1c40f;
+      left: 70px;
+      top: 20px;
+    }
+
+    @keyframes flap {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(-20deg); }
+    }
+
+    .cloud {
+      position: relative;
+      width: 120px;
+      height: 50px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 100px;
+      animation: float 4s ease-in-out infinite;
+    }
+
+    .cloud::before,
+    .cloud::after {
+      content: '';
+      position: absolute;
+      background: #fff;
+      border-radius: 50%;
+    }
+
+    .cloud::before {
+      width: 60px;
+      height: 60px;
+      top: -25px;
+      left: 20px;
+    }
+
+    .cloud::after {
+      width: 80px;
+      height: 80px;
+      top: -35px;
+      right: 10px;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 50px;
+      color: #e0e0e0;
+      font-size: 1rem;
+    }
+
+    @media (max-width: 600px) {
+      header h1 {
+        font-size: 2.2rem;
+      }
+
+      header p {
+        font-size: 1.1rem;
+      }
+
+      .gallery {
+        grid-template-columns: 1fr;
+      }
+
+      .art-card {
+        padding: 15px;
+      }
+
+      .butterfly, .balloon, .bird, .cloud {
+        transform: scale(0.8);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CSS Art Gallery</h1>
+    <p> Show casing capabilities of CSS for visual designs.</p>
+  </header>
+
+  <section class="gallery">
+    <div class="art-card">
+      <h3>Butterfly</h3>
+      <div class="butterfly">
+        <div class="body"></div>
+        <div class="wing-left"></div>
+        <div class="wing-right"></div>
+      </div>
+    </div>
+    <div class="art-card">
+      <h3>Balloon</h3>
+      <div class="balloon">
+        <div class="balloon-body"></div>
+        <div class="string"></div>
+      </div>
+    </div>
+    <div class="art-card">
+      <h3>Bird</h3>
+      <div class="bird">
+        <div class="body"></div>
+        <div class="wing"></div>
+        <div class="beak"></div>
+      </div>
+    </div>
+    <div class="art-card">
+      <h3>Cloud</h3>
+      <div class="cloud"></div>
+    </div>
+  </section>
+</body>
+</html>
