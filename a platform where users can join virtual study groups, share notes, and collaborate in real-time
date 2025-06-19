@@ -1,0 +1,385 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                var filteredData = jsonData.filter(row => row.some(filledCell))
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                )
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Virtual Study Group</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+  <style>
+    .chat-message, .file-item {
+      transition: all 0.3s ease-in-out;
+    }
+    .error {
+      border: 2px solid red;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+    }
+    .modal.active {
+      display: flex;
+    }
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    .file-preview, .note-preview {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #e5e7eb;
+      padding: 10px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans">
+  <div id="root" class="min-h-screen flex flex-col"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Study Group Component
+    const StudyGroup = ({ group, onJoin, onShareNote, onShareFile }) => {
+      const [note, setNote] = useState('');
+      const [file, setFile] = useState(null);
+      const [noteError, setNoteError] = useState('');
+      const [fileError, setFileError] = useState('');
+      const [showUploadModal, setShowUploadModal] = useState(false);
+      const [showNoteModal, setShowNoteModal] = useState(false);
+      const [showFileModal, setShowFileModal] = useState(false);
+      const [selectedNote, setSelectedNote] = useState('');
+      const [selectedFile, setSelectedFile] = useState(null);
+
+      const handleNoteSubmit = () => {
+        if (!note.trim()) {
+          setNoteError('Note cannot be empty!');
+          return;
+        }
+        setNoteError('');
+        onShareNote(group.id, note);
+        setNote('');
+      };
+
+      const handleFileSubmit = () => {
+        if (!file) {
+          setFileError('Please select a PDF file!');
+          return;
+        }
+        if (!file.name.endsWith('.pdf')) {
+          setFileError('Only PDF files are allowed!');
+          return;
+        }
+        setFileError('');
+        onShareFile(group.id, { name: file.name, url: URL.createObjectURL(file) });
+        setFile(null);
+        setShowUploadModal(false);
+      };
+
+      const viewNote = (note) => {
+        setSelectedNote(note);
+        setShowNoteModal(true);
+      };
+
+      const viewFile = (file) => {
+        setSelectedFile(file);
+        setShowFileModal(true);
+      };
+
+      return (
+        <div className="bg-white p-6 rounded-xl shadow-lg mb-6 hover:shadow-xl transition-shadow">
+          <h3 className="text-2xl font-bold text-gray-800 mb-2">{group.name}</h3>
+          <p className="text-gray-600 mb-4">Members: {group.members.join(', ')}</p>
+          <button
+            onClick={() => onJoin(group.id)}
+            className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Join Group
+          </button>
+          <div className="mt-6">
+            <h4 className="text-lg font-semibold text-gray-700">Shared Notes</h4>
+            <ul className="list-disc pl-6 mt-2">
+              {group.notes.map((n, i) => (
+                <li key={i} className="chat-message text-gray-600 py-1">
+                  <span
+                    onClick={() => viewNote(n)}
+                    className="cursor-pointer text-blue-500 hover:underline"
+                  >
+                    {n.length > 30 ? n.slice(0, 30) + '...' : n}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="mt-6">
+            <h4 className="text-lg font-semibold text-gray-700">Shared Files</h4>
+            <ul className="list-disc pl-6 mt-2">
+              {group.files.map((f, i) => (
+                <li key={i} className="file-item text-gray-600 py-1">
+                  <span
+                    onClick={() => viewFile(f)}
+                    className="cursor-pointer text-blue-500 hover:underline"
+                  >
+                    {f.name}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="mt-6">
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Share a note..."
+              className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${noteError ? 'error' : ''}`}
+            ></textarea>
+            {noteError && <p className="text-red-500 text-sm mt-1">{noteError}</p>}
+            <button
+              onClick={handleNoteSubmit}
+              className="mt-3 bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Share Note
+            </button>
+          </div>
+          <div className="mt-4">
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="bg-purple-600 text-white px-5 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              Upload PDF
+            </button>
+          </div>
+          {/* Upload PDF Modal */}
+          <div className={`modal ${showUploadModal ? 'active' : ''}`}>
+            <div className="modal-content">
+              <h4 className="text-lg font-semibold text-gray-700 mb-4">Upload PDF</h4>
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={(e) => setFile(e.target.files[0] || null)}
+                className={`w-full p-3 border rounded-lg ${fileError ? 'error' : ''}`}
+              />
+              {fileError && <p className="text-red-500 text-sm mt-1">{fileError}</p>}
+              <div className="mt-4 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowUploadModal(false)}
+                  className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleFileSubmit}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+                >
+                  Upload
+                </button>
+              </div>
+            </div>
+          </div>
+          {/* View Note Modal */}
+          <div className={`modal ${showNoteModal ? 'active' : ''}`}>
+            <div className="modal-content">
+              <h4 className="text-lg font-semibold text-gray-700 mb-4">View Note</h4>
+              <div className="note-preview text-gray-600">
+                <p>{selectedNote}</p>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => setShowNoteModal(false)}
+                  className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+          {/* View File Modal */}
+          <div className={`modal ${showFileModal ? 'active' : ''}`}>
+            <div className="modal-content">
+              <h4 className="text-lg font-semibold text-gray-700 mb-4">View File</h4>
+              <div className="file-preview">
+                {selectedFile && (
+                  <p>
+                    File: <a
+                      href={selectedFile.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline"
+                    >
+                      {selectedFile.name}
+                    </a>
+                    <br />
+                    <span className="text-gray-600">Click the link above to open the PDF in a new tab.</span>
+                  </p>
+                )}
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => setShowFileModal(false)}
+                  className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Main App Component
+    const App = () => {
+      const [groups, setGroups] = useState([
+        { id: 1, name: 'Math 101 Study Group', members: ['Alice', 'Bob'], notes: ['Chapter 1: Algebra basics'], files: [] },
+        { id: 2, name: 'Physics 202 Group', members: ['Charlie'], notes: ['Newton’s Laws recap'], files: [] },
+      ]);
+      const [userName, setUserName] = useState('');
+      const [error, setError] = useState('');
+
+      const handleJoin = (groupId) => {
+        if (!userName.trim()) {
+          setError('Please enter your name to join a group!');
+          return;
+        }
+        if (groups.some(g => g.members.includes(userName))) {
+          setError('You are already in a group!');
+          return;
+        }
+        setError('');
+        setGroups(groups.map(group => 
+          group.id === groupId 
+            ? { ...group, members: [...group.members, userName] } 
+            : group
+        ));
+      };
+
+      const handleShareNote = (groupId, note) => {
+        setGroups(groups.map(group => 
+          group.id === groupId 
+            ? { ...group, notes: [...group.notes, note] } 
+            : group
+        ));
+      };
+
+      const handleShareFile = (groupId, file) => {
+        setGroups(groups.map(group => 
+          group.id === groupId 
+            ? { ...group, files: [...group.files, file] } 
+            : group
+        ));
+      };
+
+      return (
+        <div className="container mx-auto p-6 max-w-4xl">
+          <header className="bg-blue-600 text-white p-6 rounded-xl shadow-md mb-8">
+            <h1 className="text-4xl font-bold">Virtual Study Group Platform</h1>
+            <p className="mt-2 text-lg">Join groups, share notes, and upload/view PDFs to collaborate in real-time!</p>
+          </header>
+          <div className="mb-8 bg-white p-4 rounded-xl shadow-md">
+            <label className="block text-gray-700 font-semibold mb-2">Your Name</label>
+            <input
+              type="text"
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              placeholder="Enter your name to join"
+              className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${error ? 'error' : ''}`}
+            />
+            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          </div>
+          <div className="space-y-6">
+            {groups.map(group => (
+              <StudyGroup 
+                key={group.id} 
+                group={group} 
+                onJoin={handleJoin} 
+                onShareNote={handleShareNote} 
+                onShareFile={handleShareFile} 
+              />
+            ))}
+          </div>
+          <footer className="mt-10 text-center text-gray-600 p-4 bg-white rounded-xl shadow-md">
+            <p>Virtual Study Group Platform © 2025</p>
+          </footer>
+        </div>
+      );
+    };
+
+    // Render the app
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+  <!-- Documentation -->
+  <div style="display: none;">
+    <h2>Documentation</h2>
+    <h3>Application Functionality</h3>
+    <p>This enhanced platform allows users to:
+      - Join virtual study groups by entering a unique name and clicking "Join Group" (prevents duplicate joins).
+      - Share notes within each group, with real-time updates and smooth animations.
+      - Upload PDF files via a modal, with validation for file type.
+      - View shared notes in a modal by clicking on the note text.
+      - View and open shared PDF files in a new tab by clicking on the file name.
+    </p>
+    <h3>Usage Instructions</h3>
+    <ol>
+      <li>Enter your unique name in the input field at the top.</li>
+      <li>Browse study groups (e.g., Math 101, Physics 202).</li>
+      <li>Click "Join Group" to join; you’ll be added to the members list.</li>
+      <li>Type a note in the textarea and click "Share Note" to share it.</li>
+      <li>Click a note in the "Shared Notes" list to view its full content in a modal.</li>
+      <li>Click "Upload PDF", select a PDF file, and click "Upload" to share it.</li>
+      <li>Click a file in the "Shared Files" list to view its details and open it in a new tab.</li>
+    </ol>
+    <h3>Setup Process</h3>
+    <p>
+      - No backend or database setup is required for this demo.
+      - The app runs in the browser using React and Tailwind CSS via CDNs.
+      - File uploads are simulated (names and temporary URLs displayed); actual file storage and persistent viewing require a backend.
+      - For production, add a backend (e.g., Node.js/Express) and a database (e.g., Firebase) to store groups, members, notes, and files.
+      - Host on GitHub Pages, Netlify, or similar platforms.
+    </p>
+  </div>
